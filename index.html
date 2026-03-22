@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Language Detection</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      height: 100vh;
+      background-color: #f4f4f9;
+    }
+    #video {
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      width: 70%;
+      max-width: 500px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sign Language to Kannada/Tulu</h1>
+  <video id="video" autoplay></video>
+  <button id="captureButton">Capture & Detect Gesture</button>
+  <div id="result">Result: <span id="output">None</span></div>
+
+  <script>
+    const video = document.getElementById('video');
+    const captureButton = document.getElementById('captureButton');
+    const output = document.getElementById('output');
+
+    // Access the user's webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((stream) => {
+        video.srcObject = stream;
+      })
+      .catch((err) => {
+        console.error("Error accessing webcam: ", err);
+      });
+
+    captureButton.addEventListener('click', async () => {
+      // Capture the current video frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Convert the frame to a Blob
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('frame', blob, 'frame.jpg');
+
+        // Send the frame to the Flask backend
+        try {
+          const response = await fetch('http://127.0.0.1:5000/process', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.kannada && data.tulu) {
+              output.textContent = `Kannada: ${data.kannada}, Tulu: ${data.tulu}`;
+            } else {
+              output.textContent = "Gesture not recognized!";
+            }
+          } else {
+            output.textContent = "Error processing the frame.";
+          }
+        } catch (err) {
+          console.error("Error sending frame: ", err);
+          output.textContent = "Server error. Please try again.";
+        }
+      }, 'image/jpeg');
+    });
+  </script>
+</body>
+</html>
